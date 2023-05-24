@@ -1005,15 +1005,6 @@ BEAMLINEVACUUM_INFIXES = [['0198'], ['0202', 'H292'], ['0402', '1592'], ['1602',
 INSULATINGVACUUM_CRYOMODULES = [['01'], ['02', 'H1'], ['04', '06', '08', '10', '12', '14'],
                                 ['16', '18', '20', '22', '24', '27', '29', '31', '33', '34']]
 
-linacs = {"L0B": Linac("L0B", beamlineVacuumInfixes=BEAMLINEVACUUM_INFIXES[0],
-                       insulatingVacuumCryomodules=INSULATINGVACUUM_CRYOMODULES[0]),
-          "L1B": Linac("L1B", beamlineVacuumInfixes=BEAMLINEVACUUM_INFIXES[1],
-                       insulatingVacuumCryomodules=INSULATINGVACUUM_CRYOMODULES[1]),
-          "L2B": Linac("L2B", beamlineVacuumInfixes=BEAMLINEVACUUM_INFIXES[2],
-                       insulatingVacuumCryomodules=INSULATINGVACUUM_CRYOMODULES[2]),
-          "L3B": Linac("L3B", beamlineVacuumInfixes=BEAMLINEVACUUM_INFIXES[3],
-                       insulatingVacuumCryomodules=INSULATINGVACUUM_CRYOMODULES[3])}
-
 ALL_CRYOMODULES = L0B + L1B + L1BHL + L2B + L3B
 ALL_CRYOMODULES_NO_HL = L0B + L1B + L2B + L3B
 
@@ -1023,8 +1014,22 @@ class CryoDict(dict):
                  cavityClass: Type[Cavity] = Cavity,
                  magnetClass: Type[Magnet] = Magnet, rackClass: Type[Rack] = Rack,
                  stepperClass: Type[StepperTuner] = StepperTuner,
-                 ssaClass: Type[SSA] = SSA, piezoClass: Type[Piezo] = Piezo):
+                 ssaClass: Type[SSA] = SSA, piezoClass: Type[Piezo] = Piezo,
+                 linacClass: Type[Linac] = Linac):
         super().__init__()
+        
+        self.linacs = {"L0B": linacClass("L0B",
+                                         beamlineVacuumInfixes=BEAMLINEVACUUM_INFIXES[0],
+                                         insulatingVacuumCryomodules=INSULATINGVACUUM_CRYOMODULES[0]),
+                       "L1B": linacClass("L1B",
+                                         beamlineVacuumInfixes=BEAMLINEVACUUM_INFIXES[1],
+                                         insulatingVacuumCryomodules=INSULATINGVACUUM_CRYOMODULES[1]),
+                       "L2B": linacClass("L2B",
+                                         beamlineVacuumInfixes=BEAMLINEVACUUM_INFIXES[2],
+                                         insulatingVacuumCryomodules=INSULATINGVACUUM_CRYOMODULES[2]),
+                       "L3B": linacClass("L3B",
+                                         beamlineVacuumInfixes=BEAMLINEVACUUM_INFIXES[3],
+                                         insulatingVacuumCryomodules=INSULATINGVACUUM_CRYOMODULES[3])}
         
         self.cryomoduleClass = cryomoduleClass
         self.cavityClass = cavityClass
@@ -1036,15 +1041,15 @@ class CryoDict(dict):
     
     def __missing__(self, key):
         if key in L0B:
-            linac = linacs['L0B']
+            linac = self.linacs['L0B']
         elif key in L1B:
-            linac = linacs['L1B']
+            linac = self.linacs['L1B']
         elif key in L1BHL:
-            linac = linacs['L1B']
+            linac = self.linacs['L1B']
         elif key in L2B:
-            linac = linacs['L2B']
+            linac = self.linacs['L2B']
         elif key in L3B:
-            linac = linacs['L3B']
+            linac = self.linacs['L3B']
         else:
             raise KeyError(f"Cryomodule {key} not found in any linac region.")
         cryomodule = self.cryomoduleClass(cryoName=key,
