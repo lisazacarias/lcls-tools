@@ -2,7 +2,7 @@ from time import sleep
 
 from epics import caget as epics_caget, caput as epics_caput
 from psp.Pv import DEFAULT_TIMEOUT, Pv as pyca_pv
-from pyca import pyexc
+from pyca import DBE_ALARM, DBE_VALUE, pyexc
 
 # These are the values that decide whether a PV is alarming (and if so, how)
 EPICS_NO_ALARM_VAL = 0
@@ -21,9 +21,16 @@ class PV(pyca_pv):
     def __init__(self, pvname):
         super().__init__(pvname)
         self.pvname = pvname
+        print(f"Connecting {self}, might take a while")
+        self.connect()
+        self.monitor(DBE_VALUE | DBE_ALARM)
     
     def __str__(self):
         return f"{self.pvname} PV Object"
+    
+    @property
+    def severity(self) -> int:
+        return self.data["severity"]
     
     def caget(self):
         while True:
@@ -51,17 +58,17 @@ class PV(pyca_pv):
             return self.caget()
         
         else:
-            # self.connect()
-            
-            # value = super().get(count, as_string, as_numpy, timeout,
-            #                     with_ctrlvars, use_monitor)
-            
-            try:
-                value = super().get()
-                return value
-            except pyexc as e:
-                print(e)
-                return self.caget()
+            attempt = 1
+            while True:
+                if attempt > 3:
+                    raise PVInvalidError(f"{self} get failed more than 3 times")
+                value = self.data["value"]
+                if value is not None:
+                    break
+                print(f"{self} value is none, retrying")
+                sleep(0.5)
+                attempt += 1
+            return value
     
     def put(self, value, wait=True, timeout=DEFAULT_TIMEOUT,
             use_complete=False, callback=None, callback_data=None, retry=True,
@@ -70,17 +77,15 @@ class PV(pyca_pv):
         if use_caput:
             return self.caput(value)
         
-        # status = super().put(value, wait=wait, timeout=timeout,
-        #                      use_complete=use_complete, callback=callback,
-        #                      callback_data=callback_data)
-        # self.connect()
-        
-        try:
-            super().put(value, timeout=timeout)
-        except pyexc as e:
-            print(e)
-            return self.caput(value)
-        
-        # if retry and (status is not 1):
-        #     print(f"{self} put not successful, using caput")
-        #     self.caput(value)
+        attempt = 1
+        while True:
+            if attempt > 3:
+                raise PVInvalidError(f"{self} put failed more than 3 times")
+            try:
+                super().put(value, timeout=timeout)
+                break
+            except pyexc as e:
+                attempt += 1
+                print(e)
+                print(f"{self} put failed, retrying")
+                sleep(0.5)
