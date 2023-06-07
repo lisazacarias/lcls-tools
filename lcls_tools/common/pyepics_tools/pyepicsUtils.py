@@ -69,6 +69,7 @@ class PV(pyca_pv):
         # status = super().put(value, wait=wait, timeout=timeout,
         #                      use_complete=use_complete, callback=callback,
         #                      callback_data=callback_data)
+        self.connect()
         super().put(value, timeout=timeout)
         
         # if retry and (status is not 1):
