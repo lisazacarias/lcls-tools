@@ -2,6 +2,7 @@ from time import sleep
 
 from epics import caget as epics_caget, caput as epics_caput
 from psp.Pv import DEFAULT_TIMEOUT, Pv as pyca_pv
+from pyca import pyexc
 
 # These are the values that decide whether a PV is alarming (and if so, how)
 EPICS_NO_ALARM_VAL = 0
@@ -54,13 +55,15 @@ class PV(pyca_pv):
             
             # value = super().get(count, as_string, as_numpy, timeout,
             #                     with_ctrlvars, use_monitor)
-            value = super().get()
-            if value is not None:
-                return value
-            else:
-                # print(f"{self} get failed, trying caget instead")
-                # return self.caget()
-                raise PVInvalidError(f"{self} returned None")
+            
+            while True:
+                try:
+                    value = super().get()
+                    break
+                except pyexc as e:
+                    print(e)
+                    sleep(1)
+            return value
     
     def put(self, value, wait=True, timeout=DEFAULT_TIMEOUT,
             use_complete=False, callback=None, callback_data=None, retry=True,
@@ -73,7 +76,14 @@ class PV(pyca_pv):
         #                      use_complete=use_complete, callback=callback,
         #                      callback_data=callback_data)
         # self.connect()
-        super().put(value)
+        
+        while True:
+            try:
+                super().put(value)
+                break
+            except pyexc as e:
+                print(e)
+                sleep(1)
         
         # if retry and (status is not 1):
         #     print(f"{self} put not successful, using caput")
