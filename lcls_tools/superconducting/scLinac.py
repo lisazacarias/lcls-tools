@@ -429,12 +429,7 @@ class Cavity:
         self.rfModePV: PV = PV(self.pvPrefix + "RFMODE")
         
         self._rfStatePV: PV = None
-        self.rf_control_pv_obj: PV = PV(self.pvPrefix + "RFCTRL")
-        
-        try:
-            self.rf_control_pv_obj.wait_ready(timeout=5)
-        except pyexc as e:
-            print(e)
+        self._rf_control_pv_obj: PV = None
         
         self.pulseGoButtonPV: PV = PV(self.pvPrefix + "PULSE_DIFF_SUM")
         self.pulseStatusPV = PV(self.pvPrefix + "PULSE_STATUS")
@@ -475,6 +470,18 @@ class Cavity:
     
     def __str__(self):
         return f"{self.linac.name} CM{self.cryomodule.name} Cavity {self.number}"
+    
+    @property
+    def rf_control_pv_obj(self):
+        if not self._rf_control_pv_obj:
+            self._rf_control_pv_obj: PV = PV(self.pvPrefix + "RFCTRL")
+            try:
+                self._rf_control_pv_obj.connect()
+                self._rf_control_pv_obj.wait_ready()
+            except pyexc as e:
+                print(e)
+        
+        return self._rf_control_pv_obj
     
     @property
     def edm_macro_string(self):
