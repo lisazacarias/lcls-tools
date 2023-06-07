@@ -73,7 +73,7 @@ class PV(pyca_pv):
                 attempt += 1
             return value
     
-    def put(self, value, wait=True, timeout=DEFAULT_TIMEOUT,
+    def put(self, value, wait=True, timeout=None,
             use_complete=False, callback=None, callback_data=None, retry=True,
             use_caput=False):
         
