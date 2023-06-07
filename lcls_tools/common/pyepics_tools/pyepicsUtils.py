@@ -2,7 +2,7 @@ from time import sleep
 
 from epics import caget as epics_caget, caput as epics_caput
 from psp.Pv import DEFAULT_TIMEOUT, Pv as pyca_pv
-from pyca import DBE_ALARM, DBE_VALUE, flush_io, pyexc
+from pyca import DBE_ALARM, DBE_VALUE, flush_io, pend_event, pyexc
 
 # These are the values that decide whether a PV is alarming (and if so, how)
 EPICS_NO_ALARM_VAL = 0
@@ -24,7 +24,9 @@ class PV(pyca_pv):
         print(f"Connecting {self}, might take a while")
         self.connect()
         flush_io()
+        pend_event(0.2)
         self.monitor(DBE_VALUE | DBE_ALARM)
+        pend_event(.2)
     
     def __str__(self):
         return f"{self.pvname} PV Object"
