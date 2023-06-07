@@ -55,9 +55,6 @@ class SSA(utils.SCLinacObject):
         self.calibration_status_pv: str = self.pv_addr("CALSTS")
         self._calibration_status_pv_obj: PV = None
         
-        self.reset_pv_obj = PV(self.reset_pv)
-        self.status_pv_obj = PV(self.status_pv)
-        
         self.cal_result_status_pv: str = self.pv_addr("CALSTAT")
         self._cal_result_status_pv_obj: PV = None
         
