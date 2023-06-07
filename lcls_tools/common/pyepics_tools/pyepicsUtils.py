@@ -1,6 +1,6 @@
 from time import sleep
 
-from epics import PV as epics_pv, caget as epics_caget, caput as epics_caput
+from epics import caget as epics_caget, caput as epics_caput
 from psp.Pv import DEFAULT_TIMEOUT, Pv as pyca_pv
 
 # These are the values that decide whether a PV is alarming (and if so, how)
@@ -45,7 +45,6 @@ class PV(pyca_pv):
     def get(self, count=None, as_string=False, as_numpy=True,
             timeout=DEFAULT_TIMEOUT, with_ctrlvars=False, use_monitor=True,
             use_caget=False):
-        print(f"getting {self}")
         
         if use_caget:
             return self.caget()
@@ -66,8 +65,6 @@ class PV(pyca_pv):
     def put(self, value, wait=True, timeout=DEFAULT_TIMEOUT,
             use_complete=False, callback=None, callback_data=None, retry=True,
             use_caput=False):
-        
-        print(f"putting {value} to {self}")
         
         if use_caput:
             return self.caput(value)
