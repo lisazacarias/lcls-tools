@@ -56,14 +56,12 @@ class PV(pyca_pv):
             # value = super().get(count, as_string, as_numpy, timeout,
             #                     with_ctrlvars, use_monitor)
             
-            while True:
-                try:
-                    value = super().get()
-                    break
-                except pyexc as e:
-                    print(e)
-                    sleep(1)
-            return value
+            try:
+                value = super().get()
+                return value
+            except pyexc as e:
+                print(e)
+                return self.caget()
     
     def put(self, value, wait=True, timeout=DEFAULT_TIMEOUT,
             use_complete=False, callback=None, callback_data=None, retry=True,
