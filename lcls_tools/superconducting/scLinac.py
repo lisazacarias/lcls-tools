@@ -7,7 +7,6 @@ from datetime import datetime
 from time import sleep
 from typing import Dict, List, Type
 
-from epics import caget, caput
 from numpy import isclose, sign
 
 import lcls_tools.superconducting.scLinacUtils as utils
@@ -36,17 +35,20 @@ class SSA:
             self.ps_volt_setpoint2_pv: str = hl_prefix + "PSVoltSetpt2"
             self._ps_volt_setpoint2_pv_obj: PV = None
             
-            self.statusPV: str = (hl_prefix + "StatusMsg")
-            self.turnOnPV: PV = PV(hl_prefix + "PowerOn")
-            self.turnOffPV: PV = PV(hl_prefix + "PowerOff")
-            self.resetPV: str = hl_prefix + "FaultReset"
+            self.status_pv: str = (hl_prefix + "StatusMsg")
+            self.turn_on_pv_obj: PV = PV(hl_prefix + "PowerOn")
+            self.turn_off_pv_obj: PV = PV(hl_prefix + "PowerOff")
+            self.reset_pv: str = hl_prefix + "FaultReset"
         
         else:
-            self.statusPV: str = (self.pvPrefix + "StatusMsg")
-            self.turnOnPV: PV = PV(self.pvPrefix + "PowerOn")
-            self.turnOffPV: PV = PV(self.pvPrefix + "PowerOff")
-            self.resetPV: str = self.pvPrefix + "FaultReset"
+            self.status_pv: str = (self.pvPrefix + "StatusMsg")
+            self.turn_on_pv_obj: PV = PV(self.pvPrefix + "PowerOn")
+            self.turn_off_pv_obj: PV = PV(self.pvPrefix + "PowerOff")
+            self.reset_pv: str = self.pvPrefix + "FaultReset"
             self.fwd_power_lower_limit = 3000
+        
+        self.reset_pv_obj = PV(self.reset_pv)
+        self.status_pv_obj = PV(self.status_pv)
         
         self.calibrationStartPV: PV = PV(self.pvPrefix + "CALSTRT")
         self.calibrationStatusPV: PV = PV(self.pvPrefix + "CALSTS")
@@ -121,31 +123,33 @@ class SSA:
     
     def reset(self):
         print(f"Resetting {self.cavity} SSA...")
-        caput(self.resetPV, 1)
-        while caget(self.statusPV) == utils.SSA_STATUS_RESETTING_FAULTS_VALUE:
+        self.reset_pv_obj.put(1)
+        while self.status_pv_obj.get() == utils.SSA_STATUS_RESETTING_FAULTS_VALUE:
             sleep(1)
-        if caget(self.statusPV) in [utils.SSA_STATUS_FAULTED_VALUE,
-                                    utils.SSA_STATUS_FAULT_RESET_FAILED_VALUE]:
+        if self.status_pv_obj.get() in [utils.SSA_STATUS_FAULTED_VALUE,
+                                        utils.SSA_STATUS_FAULT_RESET_FAILED_VALUE]:
             raise utils.SSAFaultError(f"Unable to reset {self.cavity} SSA")
     
     def setPowerState(self, turnOn: bool):
         print(f"Setting {self.cavity} SSA power...")
         
         if turnOn:
-            if caget(self.statusPV) != utils.SSA_STATUS_ON_VALUE:
-                while caput(self.turnOnPV.pvname, 1) != 1:
-                    self.cavity.check_abort()
-                    print(f"Trying to power on {self.cavity} SSA")
-                while caget(self.statusPV) != utils.SSA_STATUS_ON_VALUE:
+            if self.status_pv_obj.get() != utils.SSA_STATUS_ON_VALUE:
+                self.turn_on_pv_obj.put(1)
+                # while caput(self.turn_on_pv_obj.pvname, 1) != 1:
+                #     self.cavity.check_abort()
+                #     print(f"Trying to power on {self.cavity} SSA")
+                while self.status_pv_obj.get() != utils.SSA_STATUS_ON_VALUE:
                     self.cavity.check_abort()
                     print(f"waiting for {self.cavity} SSA to turn on")
                     sleep(1)
         else:
-            if caget(self.statusPV) == utils.SSA_STATUS_ON_VALUE:
-                while caput(self.turnOffPV.pvname, 1) != 1:
-                    self.cavity.check_abort()
-                    print(f"Trying to power off {self.cavity} SSA")
-                while caget(self.statusPV) == utils.SSA_STATUS_ON_VALUE:
+            if self.status_pv_obj.get() == utils.SSA_STATUS_ON_VALUE:
+                self.turn_off_pv_obj.put(1)
+                # while caput(self.turn_off_pv_obj.pvname, 1) != 1:
+                #     self.cavity.check_abort()
+                #     print(f"Trying to power off {self.cavity} SSA")
+                while self.status_pv_obj.get() == utils.SSA_STATUS_ON_VALUE:
                     self.cavity.check_abort()
                     print(f"waiting for {self.cavity} SSA to turn off")
                     sleep(1)
@@ -237,8 +241,8 @@ class StepperTuner:
         return self._limit_switch_b_pv
     
     def restoreDefaults(self):
-        caput(self.max_steps_pv.pvname, utils.DEFAULT_STEPPER_MAX_STEPS)
-        caput(self.speed_pv.pvname, utils.DEFAULT_STEPPER_SPEED)
+        self.max_steps_pv.put(utils.DEFAULT_STEPPER_MAX_STEPS)
+        self.speed_pv.put(utils.DEFAULT_STEPPER_SPEED)
     
     def move(self, numSteps: int, maxSteps: int = utils.DEFAULT_STEPPER_MAX_STEPS,
              speed: int = utils.DEFAULT_STEPPER_SPEED, changeLimits: bool = True):
@@ -254,12 +258,11 @@ class StepperTuner:
         
         if changeLimits:
             # on the off chance that someone tries to write a negative maximum
-            caput(self.max_steps_pv.pvname, abs(maxSteps))
+            self.max_steps_pv.put(abs(maxSteps))
             
             # make sure that we don't exceed the speed limit as defined by the tuner experts
-            caput(self.speed_pv.pvname,
-                  speed if speed < utils.MAX_STEPPER_SPEED
-                  else utils.MAX_STEPPER_SPEED)
+            self.speed_pv.put(speed if speed < utils.MAX_STEPPER_SPEED
+                              else utils.MAX_STEPPER_SPEED)
         
         if abs(numSteps) <= maxSteps:
             print(f"{self.cavity} {numSteps} steps <= {maxSteps} max")
@@ -296,8 +299,8 @@ class StepperTuner:
         print(f"{self.cavity} motor done moving")
         
         # the motor can be done moving for good OR bad reasons
-        if (caget(self.limit_switch_a_pv.pvname) == utils.STEPPER_ON_LIMIT_SWITCH_VALUE
-                or caget(self.limit_switch_b_pv.pvname) == utils.STEPPER_ON_LIMIT_SWITCH_VALUE):
+        if (self.limit_switch_a_pv.get() == utils.STEPPER_ON_LIMIT_SWITCH_VALUE
+                or self.limit_switch_b_pv.get() == utils.STEPPER_ON_LIMIT_SWITCH_VALUE):
             raise utils.StepperError(f"{self.cavity} stepper motor on limit switch")
     
     def check_abort(self):
@@ -419,13 +422,13 @@ class Cavity:
         
         self.selAmplitudeDesPV: PV = PV(self.pvPrefix + "ADES")
         self.selAmplitudeActPV: PV = PV(self.pvPrefix + "AACTMEAN")
-        self.ades_max_PV: PV = PV(self.pvPrefix + "ADES_MAX")
+        self.ades_max_pv_obj: PV = PV(self.pvPrefix + "ADES_MAX")
         
         self.rfModeCtrlPV: PV = PV(self.pvPrefix + "RFMODECTRL")
         self.rfModePV: PV = PV(self.pvPrefix + "RFMODE")
         
         self._rfStatePV: PV = None
-        self.rfControlPV: PV = PV(self.pvPrefix + "RFCTRL")
+        self.rf_control_pv_obj: PV = PV(self.pvPrefix + "RFCTRL")
         
         self.pulseGoButtonPV: PV = PV(self.pvPrefix + "PULSE_DIFF_SUM")
         self.pulseStatusPV = PV(self.pvPrefix + "PULSE_STATUS")
@@ -440,12 +443,16 @@ class Cavity:
         self.detune_rfs_PV: PV = PV(self.pvPrefix + "DF")
         
         self.rf_permit_pv: str = self.pvPrefix + "RFPERMIT"
+        self.rf_permit_pv_obj: PV = PV(self.rf_permit_pv)
         
         self._quench_latch_pv: PV = None
         self.quench_bypass_pv: str = self.pvPrefix + "QUENCH_BYP"
         
         self.cw_data_decim_pv: str = self.pvPrefix + "ACQ_DECIM_SEL.A"
+        self.cw_data_decim_pv_obj: PV = PV(self.cw_data_decim_pv)
+        
         self.pulsed_data_decim_pv: str = self.pvPrefix + "ACQ_DECIM_SEL.C"
+        self.pulsed_data_decim_pv_obj: PV = PV(self.pulsed_data_decim_pv)
         
         self._tune_config_pv: PV = None
         self.chirp_prefix = self.pvPrefix + "CHIRP:"
@@ -526,7 +533,7 @@ class Cavity:
         print(f"Chirp range set for {self}")
     
     @property
-    def rfStatePV(self) -> PV:
+    def rf_state_pv_obj(self) -> PV:
         if not self._rfStatePV:
             self._rfStatePV = PV(self.pvPrefix + "RFSTATE")
         return self._rfStatePV
@@ -618,9 +625,9 @@ class Cavity:
         desiredState = (1 if turnOn else 0)
         
         print(f"\nSetting RF State for {self}")
-        caput(self.rfControlPV.pvname, desiredState)
+        self.rf_control_pv_obj.put(desiredState)
         
-        while caget(self.rfStatePV.pvname) != desiredState:
+        while self.rf_state_pv_obj.get() != desiredState:
             self.check_abort()
             print(f"Waiting {wait_time} seconds for {self} RF state to change")
             sleep(wait_time)
@@ -630,13 +637,13 @@ class Cavity:
     def setup_SELAP(self, desAmp: float = 5):
         self.setup_rf(desAmp)
         
-        caput(self.rfModeCtrlPV.pvname, utils.RF_MODE_SELAP)
+        self.rfModeCtrlPV.put(utils.RF_MODE_SELAP)
         print(f"{self} set up in SELAP")
     
     def setup_SELA(self, desAmp: float = 5):
         self.setup_rf(desAmp)
         
-        caput(self.rfModeCtrlPV.pvname, utils.RF_MODE_SELA)
+        self.rfModeCtrlPV.put(utils.RF_MODE_SELA)
         print(f"{self} set up in SELA")
     
     def check_abort(self):
@@ -646,9 +653,9 @@ class Cavity:
             raise utils.CavityAbortError(f"Abort requested for {self}")
     
     def setup_rf(self, desAmp):
-        if desAmp > caget(self.ades_max_PV.pvname):
+        if desAmp > self.ades_max_pv_obj.get():
             print(f"Requested amplitude for {self} too high - ramping up to AMAX instead")
-            desAmp = caget(self.ades_max_PV.pvname)
+            desAmp = self.ades_max_pv_obj.get()
         print(f"setting up {self}")
         self.turnOff()
         self.ssa.calibrate(self.ssa.drivemax)
@@ -663,10 +670,10 @@ class Cavity:
         
         self.check_abort()
         
-        caput(self.selAmplitudeDesPV.pvname, min(5, desAmp))
-        caput(self.rfModeCtrlPV.pvname, utils.RF_MODE_SEL)
-        caput(self.piezo.feedback_mode_PV.pvname, utils.PIEZO_FEEDBACK_VALUE)
-        caput(self.rfModeCtrlPV.pvname, utils.RF_MODE_SELA)
+        self.selAmplitudeDesPV.put(min(5, desAmp))
+        self.rfModeCtrlPV.put(utils.RF_MODE_SEL)
+        self.piezo.feedback_mode_PV.put(utils.PIEZO_FEEDBACK_VALUE)
+        self.rfModeCtrlPV.put(utils.RF_MODE_SELA)
         
         self.check_abort()
         
@@ -679,8 +686,8 @@ class Cavity:
     
     def reset_data_decimation(self):
         print(f"Setting data decimation PVs for {self}")
-        caput(self.cw_data_decim_pv, 255)
-        caput(self.pulsed_data_decim_pv, 255)
+        self.cw_data_decim_pv_obj.put(255)
+        self.pulsed_data_decim_pv_obj.put(255)
     
     def setup_tuning(self, chirp_range=200000):
         print(f"enabling {self} piezo")
@@ -740,13 +747,13 @@ class Cavity:
         if retry:
             count = 0
             wait = 5
-            while caget(self.rf_permit_pv) == 0 and count < 3:
+            while self.rf_permit_pv_obj.get() == 0 and count < 3:
                 print(f"{self} reset unsuccessful, retrying and waiting {wait} seconds")
                 self.interlockResetPV.put(1)
                 sleep(wait)
                 count += 1
                 wait += 2
-            if caget(self.rf_permit_pv) == 0:
+            if self.rf_permit_pv_obj.get() == 0:
                 raise utils.CavityFaultError(f"{self} still faulted after 3 reset attempts")
     
     @property
@@ -787,7 +794,7 @@ class Cavity:
             print(f"waiting for {self.cavityCharacterizationStatusPV.pvname}"
                   f" to stop running", datetime.now())
             sleep(1)
-            
+        
         if self.cavityCharacterizationStatusPV.get() == utils.CALIBRATION_COMPLETE_VALUE:
             if (datetime.now() - self.characterization_timestamp).total_seconds() > 60:
                 raise utils.CavityQLoadedCalibrationError(f"{self} characterization did not start")
