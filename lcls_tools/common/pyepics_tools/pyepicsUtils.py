@@ -19,6 +19,7 @@ class PVInvalidError(Exception):
 class PV(pyca_pv):
     def __init__(self, pvname):
         super().__init__(pvname)
+        self.pvname = pvname
     
     def __str__(self):
         return f"{self.pvname} PV Object"
