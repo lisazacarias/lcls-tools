@@ -65,7 +65,7 @@ class PV(pyca_pv):
             while True:
                 if attempt > 3:
                     raise PVInvalidError(f"{self} get failed more than 3 times")
-                value = self.value
+                value = super().get()
                 if value is not None:
                     break
                 print(f"{self} value is none, retrying")
