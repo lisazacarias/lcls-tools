@@ -9,6 +9,8 @@ EPICS_MINOR_VAL = 1
 EPICS_MAJOR_VAL = 2
 EPICS_INVALID_VAL = 3
 
+DEBUG = True
+
 
 class PVInvalidError(Exception):
     pass
@@ -42,16 +44,17 @@ class PV(pyca_pv):
     def get(self, count=None, as_string=False, as_numpy=True,
             timeout=DEFAULT_TIMEOUT, with_ctrlvars=False, use_monitor=True,
             use_caget=False):
+        print(f"getting {self}")
         
         if use_caget:
             return self.caget()
         
         else:
-            self.connect()
+            # self.connect()
             
             # value = super().get(count, as_string, as_numpy, timeout,
             #                     with_ctrlvars, use_monitor)
-            value = super().get(count=count,as_string=as_string, timeout=timeout)
+            value = super().get()
             if value is not None:
                 return value
             else:
@@ -63,14 +66,16 @@ class PV(pyca_pv):
             use_complete=False, callback=None, callback_data=None, retry=True,
             use_caput=False):
         
+        print(f"putting {value} to {self}")
+        
         if use_caput:
             return self.caput(value)
         
         # status = super().put(value, wait=wait, timeout=timeout,
         #                      use_complete=use_complete, callback=callback,
         #                      callback_data=callback_data)
-        self.connect()
-        super().put(value, timeout=timeout)
+        # self.connect()
+        super().put(value)
         
         # if retry and (status is not 1):
         #     print(f"{self} put not successful, using caput")
