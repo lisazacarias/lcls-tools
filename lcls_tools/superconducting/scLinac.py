@@ -8,6 +8,7 @@ from time import sleep
 from typing import Dict, List, Type
 
 from numpy import isclose, sign
+from psp.Pv import DEFAULT_TIMEOUT
 from pyca import pyexc
 
 import lcls_tools.superconducting.scLinacUtils as utils
@@ -476,8 +477,10 @@ class Cavity:
         if not self._rf_control_pv_obj:
             self._rf_control_pv_obj: PV = PV(self.pvPrefix + "RFCTRL")
             try:
+                print(f"Connecting {self._rf_control_pv_obj}")
                 self._rf_control_pv_obj.connect()
-                self._rf_control_pv_obj.wait_ready()
+                print(f"Waiting ready {self._rf_control_pv_obj}")
+                self._rf_control_pv_obj.wait_ready(DEFAULT_TIMEOUT * 2)
             except pyexc as e:
                 print(e)
         
