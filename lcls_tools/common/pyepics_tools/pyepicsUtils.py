@@ -77,13 +77,11 @@ class PV(pyca_pv):
         #                      callback_data=callback_data)
         # self.connect()
         
-        while True:
-            try:
-                super().put(value, timeout=timeout)
-                break
-            except pyexc as e:
-                print(e)
-                sleep(1)
+        try:
+            super().put(value, timeout=timeout)
+        except pyexc as e:
+            print(e)
+            return self.caput(value)
         
         # if retry and (status is not 1):
         #     print(f"{self} put not successful, using caput")
