@@ -2,7 +2,7 @@ from time import sleep
 
 from epics import caget as epics_caget, caput as epics_caput
 from psp.Pv import DEFAULT_TIMEOUT, Pv as pyca_pv
-from pyca import DBE_ALARM, DBE_VALUE, flush_io, pend_event, pyexc
+from pyca import DBE_ALARM, DBE_VALUE, caexc, flush_io, pend_event, pyexc
 
 # These are the values that decide whether a PV is alarming (and if so, how)
 EPICS_NO_ALARM_VAL = 0
@@ -65,12 +65,17 @@ class PV(pyca_pv):
             while True:
                 if attempt > 3:
                     raise PVInvalidError(f"{self} get failed more than 3 times")
-                value = super().get()
-                if value is not None:
-                    break
-                print(f"{self} value is none, retrying")
-                sleep(0.5)
-                attempt += 1
+                try:
+                    value = super().get()
+                    if value is not None:
+                        break
+                    print(f"{self} value is none, retrying")
+                    sleep(0.5)
+                    attempt += 1
+                except caexc as e:
+                    print(e)
+                    sleep(0.5)
+                    attempt += 1
             return value
     
     def put(self, value, wait=True, timeout=None,
