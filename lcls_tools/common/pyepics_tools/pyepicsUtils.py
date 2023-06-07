@@ -79,7 +79,7 @@ class PV(pyca_pv):
         
         while True:
             try:
-                super().put(value)
+                super().put(value, timeout=timeout)
                 break
             except pyexc as e:
                 print(e)

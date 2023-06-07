@@ -8,6 +8,7 @@ from time import sleep
 from typing import Dict, List, Type
 
 from numpy import isclose, sign
+from pyca import pyexc
 
 import lcls_tools.superconducting.scLinacUtils as utils
 from lcls_tools.common.pyepics_tools.pyepicsUtils import EPICS_INVALID_VAL, PV
@@ -430,6 +431,11 @@ class Cavity:
         self._rfStatePV: PV = None
         self.rf_control_pv_obj: PV = PV(self.pvPrefix + "RFCTRL")
         
+        try:
+            self.rf_control_pv_obj.wait_ready(timeout=5)
+        except pyexc as e:
+            print(e)
+        
         self.pulseGoButtonPV: PV = PV(self.pvPrefix + "PULSE_DIFF_SUM")
         self.pulseStatusPV = PV(self.pvPrefix + "PULSE_STATUS")
         self.pulseOnTimePV: PV = PV(self.pvPrefix + "PULSE_ONTIME")
@@ -624,8 +630,8 @@ class Cavity:
         """
         desiredState = (1 if turnOn else 0)
         
-        print(f"\nSetting RF State for {self}")
-        self.rf_control_pv_obj.put(desiredState)
+        print(f"\nSetting RF State for {self} to {desiredState}")
+        self.rf_control_pv_obj.put(desiredState, timeout=5)
         
         while self.rf_state_pv_obj.get() != desiredState:
             self.check_abort()
