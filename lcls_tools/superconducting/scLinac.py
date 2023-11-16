@@ -1506,7 +1506,8 @@ class Cavity(utils.SCLinacObject):
                 self.finish_characterization()
                 return
 
-        print(f"Starting {self} cavity characterization at {datetime.now()}")
+        start_time = datetime.now()
+        print(f"Starting {self} cavity characterization at {start_time}")
         self.start_characterization()
         sleep(2)
 
@@ -1518,7 +1519,7 @@ class Cavity(utils.SCLinacObject):
             sleep(1)
 
         if self.characterization_status == utils.CALIBRATION_COMPLETE_VALUE:
-            if (datetime.now() - self.characterization_timestamp).total_seconds() > 60:
+            if abs((start_time - self.characterization_timestamp).total_seconds()) > 60:
                 raise utils.CavityQLoadedCalibrationError(
                     f"{self} characterization did not start"
                 )
